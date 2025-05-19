@@ -1,0 +1,12 @@
+[
+  {
+    "city": "Kyiv",
+    "temperature": 16.4,
+    "description": "Thundery outbreaks in nearby"
+  },
+  {
+    "city": "London",
+    "temperature": 16.2,
+    "description": "Partly cloudy"
+  }
+]

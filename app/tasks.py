@@ -4,55 +4,34 @@ import logging
 import traceback
 
 from app.worker import celery_app
-from app.weather_api.fetcher import fetch_weather_for_city, get_coords
+from app.weather_api.fetcher import fetch_weather_for_city
 from app.utils.normalize import normalize_city_name
 from app.utils.validators import is_valid_temperature
 from app.utils.regions import get_region
-from celery import shared_task
 
-# Настройка логгера
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
 )
 
-# @shared_task(name="app.tasks.fetch_weather_data")
-# def fetch_weather_data(city: str):
-#     from app.weather_api.fetcher import fetch_weather_for_city
-#     return fetch_weather_for_city(city)
-
 @celery_app.task(name="app.tasks.fetch_weather_data")
 def fetch_weather_data(task_id: str, cities: list[str]):
-    logger.info(f"[START] Задача fetch_weather_data начата | task_id={task_id}, cities={cities}")
+    logger.info(f"[START] Задача началась: {task_id} | Города: {cities}")
     results = {}
 
     try:
         for city in cities:
-            logger.info(f"[CITY] Обработка: {city}")
-
-            # Получение координат
-            result = get_coords(city)
-            #logger.info(f"[DEBUG] get_coords({city}) => {result}")
-            logger.debug(f"[BEFORE UNPACK] result={result}, type={type(result)}, len={len(result) if hasattr(result, '__len__') else 'N/A'}")
-
-            if not result or not isinstance(result, (list, tuple)) or len(result) != 3:
-                logger.warning(f"[SKIP] get_coords вернул некорректные данные для '{city}': {result}")
-                continue
-
-            city, lat, lon = result
-            logger.info(f"[PARSED] Город: {city}, Широта: {lat}, Долгота: {lon}")
-
-            # Нормализация
-            norm_city = normalize_city_name(city)
-            logger.info(f"[NORMALIZED] {city} → {norm_city}")
-
             try:
+                logger.info(f"[CITY] Обработка города: {city}")
+                norm_city = normalize_city_name(city)
+                logger.info(f"[NORMALIZED] {city} → {norm_city}")
+
                 data = fetch_weather_for_city(norm_city)
                 temp = data.get("temperature")
 
                 if not is_valid_temperature(temp):
-                    logger.warning(f"[SKIP] Невалидная температура у {norm_city}: {temp}")
+                    logger.warning(f"[SKIP] Невалидная температура для {norm_city}: {temp}")
                     continue
 
                 region = get_region(norm_city)
@@ -62,27 +41,91 @@ def fetch_weather_data(task_id: str, cities: list[str]):
                     "description": data.get("description"),
                 })
 
-                logger.info(f"[OK] Данные по {norm_city} добавлены в регион {region}")
+                logger.info(f"[OK] {norm_city} добавлен в регион {region}")
 
             except Exception as e:
-                logger.error(f"[ERROR] Не удалось получить погоду для {norm_city}: {e}")
-                raise
+                logger.error(f"[ERROR] Не удалось обработать {city}: {e}")
+                logger.debug(traceback.format_exc())
+                continue
 
-        # Сохраняем по регионам
+        # Сохранение данных по регионам
         for region, items in results.items():
             os.makedirs(f"weather_data/{region}", exist_ok=True)
             filepath = f"weather_data/{region}/{task_id}.json"
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(items, f, ensure_ascii=False, indent=2)
-            logger.info(f"[WRITE] Файл сохранён: {filepath}")
+            logger.info(f"[SAVE] Сохранено: {filepath}")
 
-        logger.info("[DONE] Задача успешно завершена")
+        logger.info(f"[DONE] Задача {task_id} завершена успешно")
         return {"status": "success", "result": results}
 
     except Exception as e:
-        logger.exception("[FAILURE] Произошла ошибка при выполнении задачи")
+        logger.exception("[FAILURE] Ошибка выполнения задачи")
         return {
             "status": "failure",
             "error": str(e),
             "traceback": traceback.format_exc(),
         }
+    
+# from app.worker import celery_app
+# import os, json, logging
+# from app.weather_api.fetcher import fetch_weather_for_city
+# from app.utils.normalize import normalize_city_name
+# from app.utils.validators import is_valid_temperature
+# from app.utils.regions import get_region
+
+# # celery = Celery("tasks", broker="redis://localhost:6379/0")
+
+# # @celery.task(bind=True)
+# # def fetch_weather_data(self, task_id, cities):
+# #     results = {}
+# #     for city in cities:
+# #         norm_city = normalize_city_name(city)
+# #         try:
+# #             data = fetch_weather_for_city(norm_city)
+# #             temp = data.get("temperature")
+# #             if not is_valid_temperature(temp):
+# #                 continue
+# #             region = get_region(norm_city)
+# #             results.setdefault(region, []).append({
+# #                 "city": norm_city,
+# #                 "temperature": temp,
+# #                 "description": data.get("description"),
+# #             })
+# #         except Exception as e:
+# #             logging.error(f"Error fetching {city}: {e}")
+# #             self.update_state(state='FAILURE', meta={'error': str(e)})
+# #             return {'status': 'failure', 'error': str(e)}
+    
+# #     for region, items in results.items():
+# #         os.makedirs(f"weather_data/{region}", exist_ok=True)
+# #         with open(f"weather_data/{region}/{task_id}.json", "w") as f:
+# #             json.dump(items, f)
+
+# #     self.update_state(state='SUCCESS', meta={'result': results})
+# #     return {'status': 'success', 'result': results}
+
+# @celery_app.task(name="app.tasks.fetch_weather_data")
+# def fetch_weather_data(task_id: str, cities: list[str]):
+#     try:
+#         print(f"[DEBUG] fetch_weather_data started with task_id={task_id} and cities={cities}")
+
+#         for city in cities:
+#             print(f"[DEBUG] Processing city: {city}")
+
+#             # Временно подставь мок вместо реального вызова
+#             # city, lat, lon = get_coords(city)  ❌ ← тут скорее всего падает
+#             result = get_coords(city)  # 👈 проверь, что возвращает
+#             print(f"[DEBUG] get_coords({city}) = {result}")
+
+#             if not result or len(result) != 3:
+#                 raise ValueError(f"[ERROR] get_coords вернул некорректное значение для {city}: {result}")
+
+#             city, lat, lon = result
+#             print(f"[DEBUG] Parsed: {city=}, {lat=}, {lon=}")
+
+#         return {"message": "test run completed"}
+
+#     except Exception as e:
+#         import traceback
+#         return f"Ошибка при выполнении задачи: {e}\n{traceback.format_exc()}"
