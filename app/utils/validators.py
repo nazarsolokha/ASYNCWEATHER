@@ -9,3 +9,5 @@ def is_valid_temperature(temp):
 
 def validate_city_input(city: str) -> bool:
     return re.match(r"^[a-zA-Zа-яА-ЯёЁ\s\-]+$", city) is not None
+
+#commit
