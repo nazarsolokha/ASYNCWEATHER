@@ -31,3 +31,5 @@ def get_weather(provider: str, city: str) -> dict:
         }
     else:
         raise ValueError(f"Unsupported provider: {provider}")
+
+    #commit
