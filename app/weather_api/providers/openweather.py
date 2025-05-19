@@ -20,3 +20,5 @@ def get_weather_openweather(city: str) -> dict:
         "temperature": data["current"]["temp_c"],
         "description": data["current"]["condition"]["text"],
     }
+
+#commit

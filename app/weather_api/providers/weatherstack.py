@@ -24,3 +24,6 @@ def get_weather_weatherstack(city: str) -> dict:
         "city": data["location"]["name"],
         "country": data["location"]["country"]
     }
+
+
+#commit
