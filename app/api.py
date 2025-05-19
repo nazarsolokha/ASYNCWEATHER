@@ -49,3 +49,6 @@ def get_results(region: str):
             print(f"Ошибка чтения {file}: {e}")
 
     return result
+
+
+#commit
