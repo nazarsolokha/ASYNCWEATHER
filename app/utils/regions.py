@@ -23,3 +23,6 @@ def is_valid_temperature(temp: float, region: str) -> bool:
     }
     min_temp, max_temp = region_limits.get(region.lower(), (-100, 100))
     return min_temp <= temp <= max_temp
+
+
+#commit
