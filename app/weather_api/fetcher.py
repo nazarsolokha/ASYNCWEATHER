@@ -6,5 +6,3 @@ def fetch_weather_for_city(city: str):
         return get_weather_openweather(city)
     except:
         return get_weather_weatherstack(city)
-    
-    
