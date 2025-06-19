@@ -14,3 +14,4 @@ def normalize_city_name(name: str) -> str:
     matches = get_close_matches(name, KNOWN_CITIES.keys(), n=1, cutoff=0.6)
     return matches[0] if matches else name
 
+#commit
